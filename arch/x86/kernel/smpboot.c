@@ -373,7 +373,7 @@ int topology_update_die_map(unsigned int die, unsigned int cpu)
 		goto found;
 
 	new = logical_die++;
-	if (new != die) {
+	if (0 && new != die) {
 		pr_info("CPU %u Converting physical %u to logical die %u\n",
 			cpu, die, new);
 	}

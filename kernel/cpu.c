@@ -1470,6 +1470,7 @@ void bringup_nonboot_cpus(unsigned int setup_max_cpus)
 {
 	unsigned int cpu;
 	int n = setup_max_cpus - num_online_cpus();
+	cycles_t t1, t2;
 
 	/* ∀ parallel pre-bringup state, bring N CPUs to it */
 	if (n > 0) {
@@ -1478,22 +1479,29 @@ void bringup_nonboot_cpus(unsigned int setup_max_cpus)
 		while (st <= CPUHP_BP_PARALLEL_DYN_END &&
 		       cpuhp_hp_states[st].name) {
 			int i = n;
-
+			t1 = get_cycles();
 			for_each_present_cpu(cpu) {
 				cpu_up(cpu, st);
 				if (!--i)
 					break;
 			}
+			t2 = get_cycles();
+
+			printk("Brought %d CPUs to %s in %lld cycles\n", n - i,
+			       cpuhp_hp_states[st].name, t2 - t1);
 			st++;
 		}
 	}
 
+	t1 = get_cycles();
 	for_each_present_cpu(cpu) {
 		if (num_online_cpus() >= setup_max_cpus)
 			break;
 		if (!cpu_online(cpu))
 			cpu_up(cpu, CPUHP_ONLINE);
 	}
+	t2 = get_cycles();
+	printk("Brought CPUs online in %lld cycles\n", t2 - t1);
 }
 
 #ifdef CONFIG_PM_SLEEP_SMP
