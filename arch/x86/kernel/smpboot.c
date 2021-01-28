@@ -57,6 +57,7 @@
 #include <linux/pgtable.h>
 #include <linux/overflow.h>
 #include <linux/syscore_ops.h>
+#include <linux/smpboot.h>
 
 #include <asm/acpi.h>
 #include <asm/desc.h>
@@ -1269,18 +1270,18 @@ unreg_nmi:
 	return ret;
 }
 
+/* We aren't ready for this part yet */
+static int i_fixed_parallel_tsc_sync = false;
+
 int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
 	int ret;
 
-	ret = do_cpu_up(cpu, tidle);
-	if (ret)
-		return ret;
-
-	ret = do_wait_cpu_initialized(cpu);
-	if (ret)
-		return ret;
-
+	if (!i_fixed_parallel_tsc_sync) {
+		ret = do_wait_cpu_initialized(cpu);
+		if (ret)
+			return ret;
+	}
 	ret = do_wait_cpu_callin(cpu);
 	if (ret)
 		return ret;
@@ -1295,6 +1296,16 @@ int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 	}
 
 	return ret;
+}
+
+int native_cpu_kick(unsigned int cpu)
+{
+	return do_cpu_up(cpu, idle_thread_get(cpu));
+}
+
+int native_cpu_wait_init(unsigned int cpu)
+{
+	return do_wait_cpu_initialized(cpu);
 }
 
 /**
@@ -1475,6 +1486,12 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	smp_quirk_init_udelay();
 
 	speculative_store_bypass_ht_init();
+
+	cpuhp_setup_state_nocalls(CPUHP_BP_PARALLEL_DYN, "x86/cpu:kick",
+				  native_cpu_kick, NULL);
+	if (i_fixed_parallel_tsc_sync)
+		cpuhp_setup_state_nocalls(CPUHP_BP_PARALLEL_DYN, "x86/cpu:wait-init",
+					  native_cpu_wait_init, NULL);
 }
 
 void arch_thaw_secondary_cpus_begin(void)
