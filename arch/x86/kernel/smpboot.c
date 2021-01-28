@@ -373,7 +373,7 @@ int topology_update_die_map(unsigned int die, unsigned int cpu)
 		goto found;
 
 	new = logical_die++;
-	if (0 && new != die) {
+	if (new != die) {
 		pr_info("CPU %u Converting physical %u to logical die %u\n",
 			cpu, die, new);
 	}
@@ -1256,31 +1256,21 @@ unreg_nmi:
 
 int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
-	cycles_t t1, t2, t3, t4, t5;
 	int ret;
 
-	t1 = get_cycles();
 	ret = do_cpu_up(cpu, tidle);
 	if (ret)
 		return ret;
 
-	t2 = get_cycles();
 	ret = do_wait_cpu_initialized(cpu);
 	if (ret)
 		return ret;
 
-	t3 = get_cycles();
 	ret = do_wait_cpu_callin(cpu);
 	if (ret)
 		return ret;
 
-	t4 = get_cycles();
 	ret = do_wait_cpu_online(cpu);
-
-	t5 = get_cycles();
-
-	printk("CPU#%d up in %10lld,%10lld,%10lld,%10lld (%10lld)\n", cpu,
-	       t2-t1, t3-t2, t4-t3, t5-t4, t5-t1);
 
 	if (x86_platform.legacy.warm_reset) {
 		/*
