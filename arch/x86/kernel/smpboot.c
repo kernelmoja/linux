@@ -1069,6 +1069,16 @@ int common_cpu_up(unsigned int cpu, struct task_struct *idle)
 	return 0;
 }
 
+static void setup_smpboot_control(unsigned int apicid)
+{
+#ifdef CONFIG_X86_64
+	if (boot_cpu_data.cpuid_level < 0x0B)
+		smpboot_control = apicid | STARTUP_USE_APICID;
+	else
+		smpboot_control = STARTUP_USE_CPUID_0B;
+#endif
+}
+
 /*
  * NOTE - on most systems this is a PHYSICAL apic ID, but on multiquad
  * (ie clustered apic addressing mode), this is a LOGICAL apic ID.
@@ -1083,9 +1093,14 @@ static int do_boot_cpu(int apicid, int cpu, struct task_struct *idle,
 	unsigned long boot_error = 0;
 
 	idle->thread.sp = (unsigned long)task_pt_regs(idle);
-	early_gdt_descr.address = (unsigned long)get_cpu_gdt_rw(cpu);
 	initial_code = (unsigned long)start_secondary;
-	initial_stack  = idle->thread.sp;
+
+	if (IS_ENABLED(CONFIG_X86_32)) {
+		early_gdt_descr.address = (unsigned long)get_cpu_gdt_rw(cpu);
+		initial_stack  = idle->thread.sp;
+	}
+
+	setup_smpboot_control(apicid);
 
 	/* Enable the espfix hack for this CPU */
 	init_espfix_ap(cpu);
