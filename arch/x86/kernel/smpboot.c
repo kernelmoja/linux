@@ -1271,7 +1271,7 @@ unreg_nmi:
 }
 
 /* We aren't ready for this part yet */
-static int i_fixed_parallel_tsc_sync = false;
+static int i_fixed_parallel_tsc_sync = true;
 
 int native_cpu_up(unsigned int cpu, struct task_struct *tidle)
 {
