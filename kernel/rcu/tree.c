@@ -4231,6 +4231,8 @@ int rcutree_offline_cpu(unsigned int cpu)
  * from the incoming CPU rather than from the cpuhp_step mechanism.
  * This is because this function must be invoked at a precise location.
  */
+static DEFINE_RAW_SPINLOCK(rcu_startup_lock);
+
 void rcu_cpu_starting(unsigned int cpu)
 {
 	unsigned long flags;
@@ -4239,9 +4241,11 @@ void rcu_cpu_starting(unsigned int cpu)
 	struct rcu_node *rnp;
 	bool newcpu;
 
+	raw_spin_lock(&rcu_startup_lock);
+
 	rdp = per_cpu_ptr(&rcu_data, cpu);
 	if (rdp->cpu_started)
-		return;
+		goto out;
 	rdp->cpu_started = true;
 
 	rnp = rdp->mynode;
@@ -4273,6 +4277,8 @@ void rcu_cpu_starting(unsigned int cpu)
 	WRITE_ONCE(rnp->ofl_seq, rnp->ofl_seq + 1);
 	WARN_ON_ONCE(rnp->ofl_seq & 0x1);
 	smp_mb(); /* Ensure RCU read-side usage follows above initialization. */
+ out:
+	raw_spin_unlock(&rcu_startup_lock);
 }
 
 /*
